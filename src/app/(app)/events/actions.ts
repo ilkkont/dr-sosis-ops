@@ -97,3 +97,48 @@ export async function updateEvent(id: string, input: EventInput): Promise<Action
   revalidatePath(`/events/${id}`);
   return { success: true };
 }
+
+// Etkinlikler hiçbir zaman fiziksel olarak silinmez (bkz. CLAUDE.md) — "silme"
+// durumu 'cancelled' olarak işaretleyen bir soft-delete'tir, geçmişi bozmaz.
+export async function cancelEvent(id: string): Promise<ActionResult> {
+  const profile = await requireAdmin();
+
+  const supabase = await createClient();
+  const { data: before } = await supabase
+    .from("events")
+    .select("*")
+    .eq("id", id)
+    .maybeSingle();
+
+  if (!before) {
+    return { success: false, error: "Etkinlik bulunamadı." };
+  }
+  if (before.status === "cancelled") {
+    return { success: true };
+  }
+  if (before.status === "closed") {
+    return { success: false, error: "Kapanmış bir etkinlik iptal edilemez." };
+  }
+
+  const { error } = await supabase
+    .from("events")
+    .update({ status: "cancelled" })
+    .eq("id", id);
+
+  if (error) {
+    return { success: false, error: "Etkinlik iptal edilemedi." };
+  }
+
+  await logAudit(supabase, {
+    userId: profile.id,
+    action: "event.cancel",
+    entityType: "events",
+    entityId: id,
+    oldValue: before,
+    newValue: { status: "cancelled" },
+  });
+
+  revalidatePath("/events");
+  revalidatePath(`/events/${id}`);
+  return { success: true };
+}

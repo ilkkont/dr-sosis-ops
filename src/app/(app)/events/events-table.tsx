@@ -13,6 +13,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { EventFormDialog } from "./event-form-dialog";
+import { CancelEventDialog } from "./cancel-event-dialog";
 import { EVENT_STATUS_LABELS } from "@/lib/validations/event";
 import { formatDateTR, formatTimeTR } from "@/lib/datetime";
 import type { Database } from "@/types/database";
@@ -48,7 +49,7 @@ export function EventsTable({ events, caravans }: { events: Event[]; caravans: C
             <TableHead>Karavan</TableHead>
             <TableHead className="hidden md:table-cell">Saat</TableHead>
             <TableHead>Durum</TableHead>
-            <TableHead className="w-20" />
+            <TableHead className="w-28" />
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -73,15 +74,20 @@ export function EventsTable({ events, caravans }: { events: Event[]; caravans: C
                 </Badge>
               </TableCell>
               <TableCell>
-                <EventFormDialog
-                  event={event}
-                  caravans={caravans}
-                  trigger={
-                    <Button variant="ghost" size="icon" aria-label="Düzenle">
-                      <Pencil className="size-4" />
-                    </Button>
-                  }
-                />
+                <div className="flex items-center gap-1">
+                  <EventFormDialog
+                    event={event}
+                    caravans={caravans}
+                    trigger={
+                      <Button variant="ghost" size="icon" aria-label="Düzenle">
+                        <Pencil className="size-4" />
+                      </Button>
+                    }
+                  />
+                  {event.status !== "cancelled" && event.status !== "closed" && (
+                    <CancelEventDialog eventId={event.id} eventName={event.name} />
+                  )}
+                </div>
               </TableCell>
             </TableRow>
           ))}
