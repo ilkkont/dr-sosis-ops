@@ -98,8 +98,8 @@ export async function updateEvent(id: string, input: EventInput): Promise<Action
   return { success: true };
 }
 
-// Etkinlikler hiçbir zaman fiziksel olarak silinmez (bkz. CLAUDE.md) — "silme"
-// durumu 'cancelled' olarak işaretleyen bir soft-delete'tir, geçmişi bozmaz.
+// Geri döndürülebilir seçenek: etkinliği 'cancelled' olarak işaretler,
+// geçmişi (stok/satış) korunur.
 export async function cancelEvent(id: string): Promise<ActionResult> {
   const profile = await requireAdmin();
 
@@ -140,5 +140,22 @@ export async function cancelEvent(id: string): Promise<ActionResult> {
 
   revalidatePath("/events");
   revalidatePath(`/events/${id}`);
+  return { success: true };
+}
+
+// Kalıcı silme: kullanıcının açık isteğiyle eklenmiş, geri alınamaz bir
+// istisna. Etkinlikle birlikte ona bağlı tüm satış/stok/sayım geçmişi de
+// silinir (bkz. fn_delete_event_permanently + migration'daki cascade FK'ler).
+export async function deleteEventPermanently(id: string): Promise<ActionResult> {
+  await requireAdmin();
+
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("fn_delete_event_permanently", { p_event_id: id });
+
+  if (error) {
+    return { success: false, error: "Etkinlik silinemedi: " + error.message };
+  }
+
+  revalidatePath("/events");
   return { success: true };
 }

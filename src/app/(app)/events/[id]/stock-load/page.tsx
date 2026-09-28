@@ -6,10 +6,9 @@ import { requireAdmin } from "@/lib/dal";
 import { createClient } from "@/lib/supabase/server";
 import { Button } from "@/components/ui/button";
 import { StockLoadForm } from "./stock-load-form";
-import { formatDateTR } from "@/lib/datetime";
 
 export const metadata: Metadata = {
-  title: "Başlangıç Stoku | Dr.Sosis Operasyon Paneli",
+  title: "Stok Girişi | Dr.Sosis Operasyon Paneli",
 };
 
 export default async function StockLoadPage({
@@ -31,28 +30,32 @@ export default async function StockLoadPage({
     notFound();
   }
 
-  const [{ data: items }, { data: previousCounts }] = await Promise.all([
+  const [{ data: items }, { data: depotBalances }, { data: sentMovements }] = await Promise.all([
     supabase
       .from("inventory_items")
       .select("*")
       .eq("is_active", true)
       .order("category")
       .order("name"),
+    supabase.from("v_depot_balances").select("inventory_item_id, balance"),
     supabase
-      .from("stock_counts")
-      .select("id, counted_at, events(name, event_date, caravan_id, caravans(name))")
-      .eq("status", "finalized")
-      .neq("event_id", id)
-      .order("counted_at", { ascending: false })
-      .limit(20),
+      .from("stock_movements")
+      .select("inventory_item_id, quantity_base")
+      .eq("event_id", id)
+      .eq("source_type", "depot"),
   ]);
 
-  const previousCountOptions = (previousCounts ?? []).map((count) => ({
-    id: count.id,
-    label: `${count.events?.name ?? "Etkinlik"} — ${
-      count.events?.event_date ? formatDateTR(count.events.event_date) : ""
-    } (${count.events?.caravans?.name ?? ""})`,
-  }));
+  const depotBalanceByItem = new Map(
+    (depotBalances ?? []).map((b) => [b.inventory_item_id, b.balance]),
+  );
+
+  const sentByItem = new Map<string, number>();
+  for (const movement of sentMovements ?? []) {
+    sentByItem.set(
+      movement.inventory_item_id,
+      (sentByItem.get(movement.inventory_item_id) ?? 0) + movement.quantity_base,
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -64,18 +67,18 @@ export default async function StockLoadPage({
       </div>
 
       <div>
-        <h1 className="font-display text-3xl tracking-wide text-foreground">
-          BAŞLANGIÇ STOKU
-        </h1>
+        <h1 className="font-display text-3xl tracking-wide text-foreground">STOK GİRİŞİ</h1>
         <p className="text-muted-foreground">
-          {event.name} · {event.caravans?.name} karavanına yüklenecek stok.
+          {event.name} · {event.caravans?.name} karavanına Ana Depo&apos;dan stok gönderin.
+          Miktarları değiştirip kaydederek daha önce gönderdiğiniz stoğu da düzenleyebilirsiniz.
         </p>
       </div>
 
       <StockLoadForm
         eventId={id}
         items={items ?? []}
-        previousCounts={previousCountOptions}
+        depotBalanceByItem={Object.fromEntries(depotBalanceByItem)}
+        sentByItem={Object.fromEntries(sentByItem)}
       />
     </div>
   );

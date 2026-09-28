@@ -6,6 +6,8 @@ import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Select,
   SelectContent,
@@ -14,95 +16,70 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
-  stockLoadFormSchema,
-  type StockLoadFormInput,
-  type StockLoadInput,
-} from "@/lib/validations/stock-load";
-import {
-  baseUnitLabel,
-  formatQuantity,
-  fromBaseUnit,
-  supportsKgToggle,
-  toBaseUnit,
-} from "@/lib/units";
+  depotStockEntryFormSchema,
+  type DepotStockEntryFormInput,
+  type DepotStockEntryInput,
+} from "@/lib/validations/depot";
+import { baseUnitLabel, supportsKgToggle, toBaseUnit } from "@/lib/units";
 import { INVENTORY_CATEGORY_LABELS } from "@/lib/validations/inventory";
-import { updateEventStockFromDepot } from "./actions";
+import { addDepotStock } from "./actions";
 import type { Database } from "@/types/database";
 
 type InventoryItem = Database["public"]["Tables"]["inventory_items"]["Row"];
 
-export function StockLoadForm({
-  eventId,
-  items,
-  depotBalanceByItem,
-  sentByItem,
-}: {
-  eventId: string;
-  items: InventoryItem[];
-  depotBalanceByItem: Record<string, number>;
-  sentByItem: Record<string, number>;
-}) {
+export function WarehouseStockForm({ items }: { items: InventoryItem[] }) {
   const router = useRouter();
 
   const {
     register,
     handleSubmit,
     control,
+    reset,
     formState: { isSubmitting },
-  } = useForm<StockLoadFormInput, unknown, StockLoadInput>({
-    resolver: zodResolver(stockLoadFormSchema),
+  } = useForm<DepotStockEntryFormInput, unknown, DepotStockEntryInput>({
+    resolver: zodResolver(depotStockEntryFormSchema),
     defaultValues: {
-      lines: items.map((item) => {
-        const defaultChoice = supportsKgToggle(item.unit_type) ? "kg" : "base";
-        return {
-          inventory_item_id: item.id,
-          quantity: fromBaseUnit(
-            sentByItem[item.id] ?? 0,
-            item.unit_type,
-            defaultChoice,
-            item.portion_kg_factor,
-          ),
-          unit_choice: defaultChoice,
-        };
-      }),
+      lines: items.map((item) => ({
+        inventory_item_id: item.id,
+        quantity: undefined,
+        unit_choice: "base",
+      })),
+      description: "",
     },
   });
 
-  async function onSubmit(values: StockLoadInput) {
-    const lines = values.lines.map((line) => {
-      const item = items.find((i) => i.id === line.inventory_item_id)!;
-      return {
-        inventory_item_id: line.inventory_item_id,
-        new_total_base: toBaseUnit(
-          line.quantity ?? 0,
-          item.unit_type,
-          line.unit_choice,
-          item.portion_kg_factor,
-        ),
-        current_total_base: sentByItem[line.inventory_item_id] ?? 0,
-      };
-    });
+  async function onSubmit(values: DepotStockEntryInput) {
+    const lines = values.lines
+      .filter((line) => line.quantity && line.quantity > 0)
+      .map((line) => {
+        const item = items.find((i) => i.id === line.inventory_item_id)!;
+        return {
+          inventory_item_id: line.inventory_item_id,
+          quantity_base: toBaseUnit(
+            line.quantity!,
+            item.unit_type,
+            line.unit_choice,
+            item.portion_kg_factor,
+          ),
+        };
+      });
 
-    const result = await updateEventStockFromDepot(eventId, lines);
+    const result = await addDepotStock(lines, values.description || null);
 
     if (result.success) {
-      toast.success("Stok girişi güncellendi.");
+      toast.success("Depoya stok eklendi.");
+      reset({
+        lines: items.map((item) => ({
+          inventory_item_id: item.id,
+          quantity: undefined,
+          unit_choice: "base",
+        })),
+        description: "",
+      });
       router.refresh();
-      return;
+    } else {
+      toast.error(result.error);
     }
-
-    if ("insufficientItems" in result && result.insufficientItems.length > 0) {
-      const names = result.insufficientItems
-        .map((entry) => {
-          const item = items.find((i) => i.id === entry.inventory_item_id);
-          return item ? `${item.name} (depoda ${formatQuantity(item.unit_type, entry.depot_balance, item.portion_kg_factor)} var)` : entry.inventory_item_id;
-        })
-        .join(", ");
-      toast.error(`Depoda yeterli stok yok: ${names}`);
-      return;
-    }
-
-    toast.error(result.error);
   }
 
   return (
@@ -110,7 +87,6 @@ export function StockLoadForm({
       <div className="space-y-3">
         {items.map((item, index) => {
           const showCategoryHeader = index === 0 || items[index - 1].category !== item.category;
-          const depotBalance = depotBalanceByItem[item.id] ?? 0;
           return (
             <div key={item.id}>
               {showCategoryHeader && (
@@ -118,13 +94,8 @@ export function StockLoadForm({
                   {INVENTORY_CATEGORY_LABELS[item.category]}
                 </p>
               )}
-              <div className="flex flex-wrap items-center gap-3 rounded-md border p-3">
-                <div className="flex-1">
-                  <p className="text-sm font-medium">{item.name}</p>
-                  <p className="text-xs text-muted-foreground">
-                    Depo bakiyesi: {formatQuantity(item.unit_type, depotBalance, item.portion_kg_factor)}
-                  </p>
-                </div>
+              <div className="flex items-center gap-3 rounded-md border p-3">
+                <span className="flex-1 text-sm font-medium">{item.name}</span>
                 <Input
                   type="number"
                   step="0.001"
@@ -159,8 +130,13 @@ export function StockLoadForm({
         })}
       </div>
 
+      <div className="space-y-2">
+        <Label htmlFor="description">Açıklama (opsiyonel)</Label>
+        <Textarea id="description" {...register("description")} placeholder="Örn. tedarikçi, fatura no" />
+      </div>
+
       <Button type="submit" disabled={isSubmitting} className="bg-red text-white hover:bg-red-deep">
-        {isSubmitting ? "Kaydediliyor..." : "Kaydet"}
+        {isSubmitting ? "Ekleniyor..." : "Depoya Ekle"}
       </Button>
     </form>
   );

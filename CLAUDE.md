@@ -17,9 +17,23 @@ için `.claude/plans/lovely-munching-wombat.md` dosyasına bakılabilir
   İstemci veya Server Action asla reçete tüketimini, negatif stok kontrolünü
   veya sayım/transfer hesaplarını kendi başına yapmaz — her zaman ilgili
   `fn_*` fonksiyonunu çağırır.
-- **RLS her tabloda aktif**, tek policy deseni: `public.is_admin()`. Hiçbir
+- **RLS her tabloda aktif**, tek policy deseni: `public.is_admin()`. Çoğu
   tabloda DELETE policy'si yoktur (kritik kayıtlar silinmez, yalnızca
-  pasifleştirilir veya yeni versiyon/ters kayıtla düzeltilir).
+  pasifleştirilir veya yeni versiyon/ters kayıtla düzeltilir). **Tek istisna:
+  `events`** — kullanıcının açık isteğiyle `fn_delete_event_permanently` ile
+  kalıcı silme eklendi (bkz. `20260827090000_event_hard_delete.sql`); bir
+  etkinlik silinince cascade FK'ler sayesinde ona bağlı tüm stok/satış/sayım
+  geçmişi de silinir. Yeni bir tabloyu bu şekilde silinebilir yapmadan önce
+  bunun bilinçli, dar kapsamlı bir istisna olduğunu unutmayın.
+- **Ana Depo (`depot_movements` / `v_depot_balances`), etkinliklere stok
+  girişinin TEK yoludur.** `stock_movements` ile aynı immutable-ledger
+  deseni ama ayrı bir tablo (event/caravan'dan bağımsız, tek başına bir
+  envanter). Bir etkinliğin "Stok Girişi" ekranı artık serbest miktar kabul
+  etmez — yalnızca `fn_send_depot_to_event` (depo bakiyesini aşan istek
+  reddedilir, `warn_allow` yoktur) ve `fn_return_to_depot` (artık depoyu da
+  kredilendiriyor) üzerinden çalışır. Bir etkinlikteki "gönderilen toplam"ı
+  düzenlemek istediğinizde mevcut satırı UPDATE etmeyin — yeni delta'yı bu
+  iki fonksiyondan biriyle gönderin (bkz. `stock-load/actions.ts`).
 - **Her Server Action ve her korumalı sayfa `requireAdmin()` ile başlar**
   (`src/lib/dal.ts`) — `src/proxy.ts` yalnızca "optimistic" bir ön kontroldür,
   tek başına yeterli güvenlik katmanı değildir (Next.js'in kendi güvenlik

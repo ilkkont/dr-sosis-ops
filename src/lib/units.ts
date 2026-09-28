@@ -24,6 +24,20 @@ export function toBaseUnit(
   return value;
 }
 
+/** toBaseUnit'in tersi: ana birimdeki bir değeri seçilen giriş birimine çevirir. */
+export function fromBaseUnit(
+  valueBase: number,
+  unitType: UnitType,
+  displayChoice: DisplayUnitChoice,
+  portionKgFactor: number | null,
+): number {
+  if (displayChoice === "kg") {
+    if (unitType === "weight") return valueBase / 1000;
+    if (unitType === "portion" && portionKgFactor) return valueBase / portionKgFactor;
+  }
+  return valueBase;
+}
+
 export function baseUnitLabel(unitType: UnitType): string {
   if (unitType === "count") return "adet";
   if (unitType === "weight") return "gram";
@@ -32,4 +46,28 @@ export function baseUnitLabel(unitType: UnitType): string {
 
 export function supportsKgToggle(unitType: UnitType): boolean {
   return unitType === "weight" || unitType === "portion";
+}
+
+/**
+ * Ana birimdeki (gram/porsiyon/adet) bir değeri kullanıcıya kg/adet gibi
+ * anlaşılır bir birimde, tek bir metin olarak gösterir. Gram kalemler kg'a
+ * çevrilir; porsiyon kalemler hem kg hem porsiyon karşılığını gösterir;
+ * adet kalemler doğrudan adet olarak gösterilir.
+ */
+export function formatQuantity(
+  unitType: UnitType,
+  quantityBase: number,
+  portionKgFactor: number | null,
+): string {
+  if (unitType === "weight") {
+    return `${(quantityBase / 1000).toLocaleString("tr-TR", { maximumFractionDigits: 2 })} kg`;
+  }
+  if (unitType === "portion") {
+    const kg = portionKgFactor ? quantityBase / portionKgFactor : null;
+    const portionText = `${quantityBase.toLocaleString("tr-TR", { maximumFractionDigits: 2 })} porsiyon`;
+    return kg !== null
+      ? `${kg.toLocaleString("tr-TR", { maximumFractionDigits: 2 })} kg (${portionText})`
+      : portionText;
+  }
+  return `${quantityBase.toLocaleString("tr-TR", { maximumFractionDigits: 0 })} adet`;
 }

@@ -3,6 +3,7 @@ import {
   LayoutDashboard,
   CalendarRange,
   Truck,
+  Warehouse,
   Boxes,
   UtensilsCrossed,
   BarChart3,
@@ -18,6 +19,7 @@ export type NavItem = {
 export const NAV_ITEMS: NavItem[] = [
   { href: "/dashboard", label: "Panel", icon: LayoutDashboard },
   { href: "/events", label: "Etkinlikler", icon: CalendarRange },
+  { href: "/warehouse", label: "Ana Depo", icon: Warehouse },
   { href: "/caravans", label: "Karavanlar", icon: Truck },
   { href: "/inventory", label: "Stok Kalemleri", icon: Boxes },
   { href: "/menu-products", label: "Menü Ürünleri", icon: UtensilsCrossed },

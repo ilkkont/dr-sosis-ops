@@ -13,6 +13,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { InventoryFormDialog } from "./inventory-form-dialog";
 import { INVENTORY_CATEGORY_LABELS, UNIT_TYPE_LABELS } from "@/lib/validations/inventory";
+import { formatQuantity } from "@/lib/units";
 import type { Database } from "@/types/database";
 
 type InventoryItem = Database["public"]["Tables"]["inventory_items"]["Row"];
@@ -53,7 +54,7 @@ export function InventoryTable({ items }: { items: InventoryItem[] }) {
                   : ""}
               </TableCell>
               <TableCell className="hidden text-muted-foreground md:table-cell">
-                {item.critical_level}
+                {formatQuantity(item.unit_type, item.critical_level, item.portion_kg_factor)}
               </TableCell>
               <TableCell>
                 <Badge variant={item.is_active ? "default" : "secondary"}>

@@ -13,7 +13,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { EventFormDialog } from "./event-form-dialog";
-import { CancelEventDialog } from "./cancel-event-dialog";
+import { DeleteEventDialog } from "./delete-event-dialog";
 import { EVENT_STATUS_LABELS } from "@/lib/validations/event";
 import { formatDateTR, formatTimeTR } from "@/lib/datetime";
 import type { Database } from "@/types/database";
@@ -84,9 +84,7 @@ export function EventsTable({ events, caravans }: { events: Event[]; caravans: C
                       </Button>
                     }
                   />
-                  {event.status !== "cancelled" && event.status !== "closed" && (
-                    <CancelEventDialog eventId={event.id} eventName={event.name} />
-                  )}
+                  <DeleteEventDialog eventId={event.id} eventName={event.name} />
                 </div>
               </TableCell>
             </TableRow>

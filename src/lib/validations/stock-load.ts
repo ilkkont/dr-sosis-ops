@@ -8,8 +8,6 @@ export const stockLoadLineSchema = z.object({
 
 export const stockLoadFormSchema = z.object({
   lines: z.array(stockLoadLineSchema),
-  description: z.string().max(300).optional().or(z.literal("")),
-  copy_from_stock_count_id: z.string().optional().or(z.literal("")),
 });
 
 export type StockLoadFormInput = z.input<typeof stockLoadFormSchema>;

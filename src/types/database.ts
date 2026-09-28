@@ -357,6 +357,40 @@ export type Database = {
           },
         ];
       };
+      depot_movements: {
+        Row: {
+          id: string;
+          inventory_item_id: string;
+          movement_type: Database["public"]["Enums"]["depot_movement_type"];
+          quantity_base: number;
+          source_type: Database["public"]["Enums"]["movement_source_type"] | null;
+          source_id: string | null;
+          description: string | null;
+          created_by: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          inventory_item_id: string;
+          movement_type: Database["public"]["Enums"]["depot_movement_type"];
+          quantity_base: number;
+          source_type?: Database["public"]["Enums"]["movement_source_type"] | null;
+          source_id?: string | null;
+          description?: string | null;
+          created_by?: string | null;
+          created_at?: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["depot_movements"]["Insert"]>;
+        Relationships: [
+          {
+            foreignKeyName: "depot_movements_inventory_item_id_fkey";
+            columns: ["inventory_item_id"];
+            isOneToOne: false;
+            referencedRelation: "inventory_items";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       stock_counts: {
         Row: {
           id: string;
@@ -650,6 +684,21 @@ export type Database = {
           },
         ];
       };
+      v_depot_balances: {
+        Row: {
+          inventory_item_id: string;
+          balance: number;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "depot_movements_inventory_item_id_fkey";
+            columns: ["inventory_item_id"];
+            isOneToOne: false;
+            referencedRelation: "inventory_items";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
     };
     Functions: {
       is_admin: {
@@ -726,6 +775,18 @@ export type Database = {
         Args: { p_event_id: string };
         Returns: Json;
       };
+      fn_delete_event_permanently: {
+        Args: { p_event_id: string };
+        Returns: Json;
+      };
+      fn_depot_stock_entry: {
+        Args: { p_lines: Json; p_description?: string | null };
+        Returns: Json;
+      };
+      fn_send_depot_to_event: {
+        Args: { p_event_id: string; p_lines: Json };
+        Returns: Json;
+      };
     };
     Enums: {
       app_role: "admin";
@@ -762,7 +823,9 @@ export type Database = {
         | "stock_count"
         | "waste_record"
         | "stock_transfer"
-        | "manual";
+        | "manual"
+        | "depot";
+      depot_movement_type: "purchase_in" | "transfer_out_to_event" | "transfer_in_from_event";
       stock_count_status: "draft" | "finalized";
       sales_batch_status: "draft" | "finalized" | "corrected";
       waste_type: "fire" | "complimentary" | "staff_meal" | "defective";

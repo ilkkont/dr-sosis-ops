@@ -17,6 +17,7 @@ import {
 } from "@/components/ui/table";
 import { EVENT_STATUS_LABELS } from "@/lib/validations/event";
 import { formatDateTR, formatTimeTR } from "@/lib/datetime";
+import { formatQuantity } from "@/lib/units";
 
 export const metadata: Metadata = {
   title: "Etkinlik Detayı | Dr.Sosis Operasyon Paneli",
@@ -50,7 +51,7 @@ export default async function EventDetailPage({
 
   const { data: balances } = await supabase
     .from("v_stock_balances")
-    .select("inventory_item_id, balance, inventory_items(name, unit_type)")
+    .select("inventory_item_id, balance, inventory_items(name, unit_type, portion_kg_factor)")
     .eq("event_id", id)
     .eq("caravan_id", event.caravan_id);
 
@@ -89,8 +90,8 @@ export default async function EventDetailPage({
         >
           <Package className="size-5" />
           <div className="text-left">
-            <p className="font-medium">Başlangıç Stoku</p>
-            <p className="text-xs text-muted-foreground">Karavana stok yükle</p>
+            <p className="font-medium">Stok Girişi</p>
+            <p className="text-xs text-muted-foreground">Depodan gönder / düzenle</p>
           </div>
         </Button>
 
@@ -167,7 +168,15 @@ export default async function EventDetailPage({
                   {nonZeroBalances.map((row) => (
                     <TableRow key={row.inventory_item_id}>
                       <TableCell>{row.inventory_items?.name}</TableCell>
-                      <TableCell className="text-right font-medium">{row.balance}</TableCell>
+                      <TableCell className="text-right font-medium">
+                        {row.inventory_items
+                          ? formatQuantity(
+                              row.inventory_items.unit_type,
+                              row.balance,
+                              row.inventory_items.portion_kg_factor,
+                            )
+                          : row.balance}
+                      </TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
