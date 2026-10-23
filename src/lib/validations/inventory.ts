@@ -1,29 +1,5 @@
 import { z } from "zod";
 
-export const inventoryCategorySchema = z.enum([
-  "bread",
-  "sausage",
-  "cheese",
-  "sauce",
-  "topping",
-  "drink",
-  "packaging",
-  "produce",
-  "other",
-]);
-
-export const INVENTORY_CATEGORY_LABELS: Record<z.infer<typeof inventoryCategorySchema>, string> = {
-  bread: "Ekmek",
-  sausage: "Sosis",
-  cheese: "Peynir",
-  sauce: "Sos",
-  topping: "Garnitür",
-  drink: "İçecek",
-  packaging: "Paketleme",
-  produce: "Sebze/Diğer Gıda",
-  other: "Diğer",
-};
-
 export const UNIT_TYPE_LABELS: Record<"count" | "weight" | "portion", string> = {
   count: "Adet",
   weight: "Gram",
@@ -33,8 +9,10 @@ export const UNIT_TYPE_LABELS: Record<"count" | "weight" | "portion", string> = 
 export const inventoryItemSchema = z
   .object({
     name: z.string().min(1, { message: "Ad gerekli." }).max(100),
-    category: inventoryCategorySchema,
+    category_id: z.string().min(1, { message: "Kategori seçin." }),
     unit_type: z.enum(["count", "weight", "portion"]),
+    unit_label: z.string().max(30).optional().or(z.literal("")),
+    pack_size: z.coerce.number().positive().optional(),
     portion_kg_factor: z.coerce.number().positive().optional(),
     critical_level: z.coerce.number().min(0, { message: "Kritik seviye 0 veya üzeri olmalı." }),
     is_active: z.boolean(),
@@ -53,9 +31,17 @@ export const inventoryItemSchema = z
 export type InventoryItemFormInput = z.input<typeof inventoryItemSchema>;
 export type InventoryItemInput = z.output<typeof inventoryItemSchema>;
 
-// Ana birime göre giriş formunda gösterilecek varsayılan birim: adet
-// kalemler her zaman adet, gram kalemler gram (kg toggle UI'da sabit ×1000),
-// porsiyon kalemler porsiyon (kg toggle katsayısı yönetilebilir).
+export const inventoryCategorySchema = z.object({
+  name: z.string().min(1, { message: "Kategori adı gerekli." }).max(60),
+  sort_order: z.coerce.number().int().min(0).max(9999),
+  is_active: z.boolean(),
+});
+
+export type InventoryCategoryFormInput = z.input<typeof inventoryCategorySchema>;
+export type InventoryCategoryInput = z.output<typeof inventoryCategorySchema>;
+
+// Ana birime göre veritabanındaki varsayılan giriş birimi sütunu: sayma
+// kalemleri her zaman adet, gram kalemleri gram, porsiyon kalemleri porsiyon.
 export function defaultDisplayUnit(
   unitType: InventoryItemInput["unit_type"],
 ): "unit" | "gram" | "portion" {

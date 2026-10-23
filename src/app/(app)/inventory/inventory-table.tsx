@@ -12,13 +12,17 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { InventoryFormDialog } from "./inventory-form-dialog";
-import { INVENTORY_CATEGORY_LABELS, UNIT_TYPE_LABELS } from "@/lib/validations/inventory";
-import { formatQuantity } from "@/lib/units";
-import type { Database } from "@/types/database";
+import { UNIT_TYPE_LABELS } from "@/lib/validations/inventory";
+import { baseUnitLabel, formatQuantity } from "@/lib/units";
+import { categoryName, type InventoryCategory, type ItemWithCategory } from "@/lib/inventory";
 
-type InventoryItem = Database["public"]["Tables"]["inventory_items"]["Row"];
-
-export function InventoryTable({ items }: { items: InventoryItem[] }) {
+export function InventoryTable({
+  items,
+  categories,
+}: {
+  items: ItemWithCategory[];
+  categories: InventoryCategory[];
+}) {
   if (items.length === 0) {
     return (
       <p className="rounded-md border border-dashed p-8 text-center text-muted-foreground">
@@ -45,16 +49,21 @@ export function InventoryTable({ items }: { items: InventoryItem[] }) {
             <TableRow key={item.id}>
               <TableCell className="font-medium">{item.name}</TableCell>
               <TableCell className="text-muted-foreground">
-                {INVENTORY_CATEGORY_LABELS[item.category]}
+                {categoryName(item)}
               </TableCell>
               <TableCell className="text-muted-foreground">
-                {UNIT_TYPE_LABELS[item.unit_type]}
+                {item.unit_type === "count" ? baseUnitLabel(item) : UNIT_TYPE_LABELS[item.unit_type]}
                 {item.unit_type === "portion" && item.portion_kg_factor
                   ? ` (1 kg = ${item.portion_kg_factor} porsiyon)`
                   : ""}
+                {item.unit_type === "weight" && item.unit_label
+                  ? item.pack_size
+                    ? ` (1 ${item.unit_label} = ${item.pack_size} gram)`
+                    : ` (${item.unit_label} — dönüşüm girilmedi)`
+                  : ""}
               </TableCell>
               <TableCell className="hidden text-muted-foreground md:table-cell">
-                {formatQuantity(item.unit_type, item.critical_level, item.portion_kg_factor)}
+                {formatQuantity(item, item.critical_level)}
               </TableCell>
               <TableCell>
                 <Badge variant={item.is_active ? "default" : "secondary"}>
@@ -64,6 +73,7 @@ export function InventoryTable({ items }: { items: InventoryItem[] }) {
               <TableCell>
                 <InventoryFormDialog
                   item={item}
+                  categories={categories}
                   trigger={
                     <Button variant="ghost" size="icon" aria-label="Düzenle">
                       <Pencil className="size-4" />

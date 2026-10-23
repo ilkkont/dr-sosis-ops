@@ -10,8 +10,13 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { INVENTORY_CATEGORY_LABELS } from "@/lib/validations/inventory";
 import { formatQuantity } from "@/lib/units";
+import {
+  ITEM_WITH_CATEGORY_SELECT,
+  categoryName,
+  sortItemsByCategory,
+  type ItemWithCategory,
+} from "@/lib/inventory";
 import { WarehouseStockForm } from "./warehouse-stock-form";
 import { DepotMovementsLog } from "./depot-movements-log";
 
@@ -24,22 +29,18 @@ export default async function WarehousePage() {
   const supabase = await createClient();
 
   const [{ data: items }, { data: balances }, { data: movements }] = await Promise.all([
-    supabase
-      .from("inventory_items")
-      .select("*")
-      .eq("is_active", true)
-      .order("category")
-      .order("name"),
+    supabase.from("inventory_items").select(ITEM_WITH_CATEGORY_SELECT).eq("is_active", true),
     supabase.from("v_depot_balances").select("inventory_item_id, balance"),
     supabase
       .from("depot_movements")
-      .select("*, inventory_items(name, unit_type, portion_kg_factor)")
+      .select("*, inventory_items(name, unit_type, portion_kg_factor, unit_label, pack_size)")
       .order("created_at", { ascending: false })
       .limit(30),
   ]);
 
+  const sortedItems = sortItemsByCategory((items ?? []) as ItemWithCategory[]);
   const balanceByItem = new Map((balances ?? []).map((b) => [b.inventory_item_id, b.balance]));
-  const nonZeroItems = (items ?? []).filter((item) => (balanceByItem.get(item.id) ?? 0) !== 0);
+  const nonZeroItems = sortedItems.filter((item) => (balanceByItem.get(item.id) ?? 0) !== 0);
 
   return (
     <div className="space-y-6">
@@ -71,15 +72,11 @@ export default async function WarehousePage() {
                   {nonZeroItems.map((item) => (
                     <TableRow key={item.id}>
                       <TableCell className="text-muted-foreground">
-                        {INVENTORY_CATEGORY_LABELS[item.category]}
+                        {categoryName(item)}
                       </TableCell>
                       <TableCell className="font-medium">{item.name}</TableCell>
                       <TableCell className="text-right">
-                        {formatQuantity(
-                          item.unit_type,
-                          balanceByItem.get(item.id) ?? 0,
-                          item.portion_kg_factor,
-                        )}
+                        {formatQuantity(item, balanceByItem.get(item.id) ?? 0)}
                       </TableCell>
                     </TableRow>
                   ))}
@@ -95,7 +92,7 @@ export default async function WarehousePage() {
           <h2 className="font-display text-xl tracking-wide text-foreground">DEPOYA STOK EKLE</h2>
         </CardHeader>
         <CardContent>
-          <WarehouseStockForm items={items ?? []} />
+          <WarehouseStockForm items={sortedItems} />
         </CardContent>
       </Card>
 

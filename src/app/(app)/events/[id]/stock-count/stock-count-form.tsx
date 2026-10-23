@@ -26,7 +26,7 @@ import type { Database } from "@/types/database";
 
 type InventoryItem = Pick<
   Database["public"]["Tables"]["inventory_items"]["Row"],
-  "id" | "name" | "category" | "unit_type"
+  "id" | "name" | "unit_type"
 >;
 type StockCount = Database["public"]["Tables"]["stock_counts"]["Row"] & {
   stock_count_lines: Database["public"]["Tables"]["stock_count_lines"]["Row"][];

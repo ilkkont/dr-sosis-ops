@@ -6,6 +6,7 @@ import { requireAdmin } from "@/lib/dal";
 import { createClient } from "@/lib/supabase/server";
 import { Button } from "@/components/ui/button";
 import { StockLoadForm } from "./stock-load-form";
+import { ITEM_WITH_CATEGORY_SELECT, sortItemsByCategory, type ItemWithCategory } from "@/lib/inventory";
 
 export const metadata: Metadata = {
   title: "Stok Girişi | Dr.Sosis Operasyon Paneli",
@@ -31,12 +32,7 @@ export default async function StockLoadPage({
   }
 
   const [{ data: items }, { data: depotBalances }, { data: sentMovements }] = await Promise.all([
-    supabase
-      .from("inventory_items")
-      .select("*")
-      .eq("is_active", true)
-      .order("category")
-      .order("name"),
+    supabase.from("inventory_items").select(ITEM_WITH_CATEGORY_SELECT).eq("is_active", true),
     supabase.from("v_depot_balances").select("inventory_item_id, balance"),
     supabase
       .from("stock_movements")
@@ -76,7 +72,7 @@ export default async function StockLoadPage({
 
       <StockLoadForm
         eventId={id}
-        items={items ?? []}
+        items={sortItemsByCategory((items ?? []) as ItemWithCategory[])}
         depotBalanceByItem={Object.fromEntries(depotBalanceByItem)}
         sentByItem={Object.fromEntries(sentByItem)}
       />

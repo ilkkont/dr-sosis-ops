@@ -8,15 +8,9 @@ import { toBaseUnit } from "@/lib/units";
 
 export type ActionResult = { success: true } | { success: false; error: string };
 
-type ItemMeta = {
-  unit_type: "count" | "weight" | "portion";
-  portion_kg_factor: number | null;
-};
-
 export async function recordMovement(
   eventId: string,
   input: MovementInput,
-  item: ItemMeta,
 ): Promise<ActionResult> {
   await requireAdmin();
 
@@ -25,14 +19,19 @@ export async function recordMovement(
     return { success: false, error: "Geçersiz form verisi." };
   }
 
-  const quantityBase = toBaseUnit(
-    parsed.data.quantity,
-    item.unit_type,
-    parsed.data.unit_choice,
-    item.portion_kg_factor,
-  );
-
   const supabase = await createClient();
+
+  // Birim dönüşümü için kalem bilgisi istemciden değil veritabanından okunur.
+  const { data: item } = await supabase
+    .from("inventory_items")
+    .select("unit_type, portion_kg_factor, unit_label, pack_size")
+    .eq("id", parsed.data.inventory_item_id)
+    .maybeSingle();
+  if (!item) {
+    return { success: false, error: "Malzeme bulunamadı." };
+  }
+
+  const quantityBase = toBaseUnit(parsed.data.quantity, item, parsed.data.unit_choice);
   const line = { inventory_item_id: parsed.data.inventory_item_id, quantity_base: quantityBase };
 
   if (parsed.data.kind === "additional_entry") {

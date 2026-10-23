@@ -51,7 +51,7 @@ export default async function EventDetailPage({
 
   const { data: balances } = await supabase
     .from("v_stock_balances")
-    .select("inventory_item_id, balance, inventory_items(name, unit_type, portion_kg_factor)")
+    .select("inventory_item_id, balance, inventory_items(name, unit_type, portion_kg_factor, unit_label, pack_size)")
     .eq("event_id", id)
     .eq("caravan_id", event.caravan_id);
 
@@ -170,11 +170,7 @@ export default async function EventDetailPage({
                       <TableCell>{row.inventory_items?.name}</TableCell>
                       <TableCell className="text-right font-medium">
                         {row.inventory_items
-                          ? formatQuantity(
-                              row.inventory_items.unit_type,
-                              row.balance,
-                              row.inventory_items.portion_kg_factor,
-                            )
+                          ? formatQuantity(row.inventory_items, row.balance)
                           : row.balance}
                       </TableCell>
                     </TableRow>

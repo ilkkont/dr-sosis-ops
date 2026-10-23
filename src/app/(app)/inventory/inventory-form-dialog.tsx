@@ -25,22 +25,21 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import {
-  INVENTORY_CATEGORY_LABELS,
   UNIT_TYPE_LABELS,
   inventoryItemSchema,
   type InventoryItemFormInput,
   type InventoryItemInput,
 } from "@/lib/validations/inventory";
 import { createInventoryItem, updateInventoryItem } from "./actions";
-import type { Database } from "@/types/database";
-
-type InventoryItem = Database["public"]["Tables"]["inventory_items"]["Row"];
+import type { InventoryCategory, InventoryItem } from "@/lib/inventory";
 
 export function InventoryFormDialog({
   item,
+  categories,
   trigger,
 }: {
   item?: InventoryItem;
+  categories: InventoryCategory[];
   trigger: React.ReactElement;
 }) {
   const [open, setOpen] = useState(false);
@@ -56,8 +55,10 @@ export function InventoryFormDialog({
     resolver: zodResolver(inventoryItemSchema),
     defaultValues: {
       name: item?.name ?? "",
-      category: item?.category ?? "other",
+      category_id: item?.category_id ?? "",
       unit_type: item?.unit_type ?? "count",
+      unit_label: item?.unit_label ?? "",
+      pack_size: item?.pack_size ?? undefined,
       portion_kg_factor: item?.portion_kg_factor ?? undefined,
       critical_level: item?.critical_level ?? 0,
       is_active: item?.is_active ?? true,
@@ -65,6 +66,10 @@ export function InventoryFormDialog({
   });
 
   const unitType = useWatch({ control, name: "unit_type" });
+  const unitLabel = useWatch({ control, name: "unit_label" });
+  const selectableCategories = categories.filter(
+    (category) => category.is_active || category.id === item?.category_id,
+  );
 
   async function onSubmit(values: InventoryItemInput) {
     const result = isEdit
@@ -115,25 +120,28 @@ export function InventoryFormDialog({
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="category">Kategori</Label>
+              <Label htmlFor="category_id">Kategori</Label>
               <Controller
                 control={control}
-                name="category"
+                name="category_id"
                 render={({ field }) => (
                   <Select value={field.value} onValueChange={field.onChange}>
-                    <SelectTrigger id="category" className="w-full">
-                      <SelectValue />
+                    <SelectTrigger id="category_id" className="w-full">
+                      <SelectValue placeholder="Kategori seçin" />
                     </SelectTrigger>
                     <SelectContent>
-                      {Object.entries(INVENTORY_CATEGORY_LABELS).map(([value, label]) => (
-                        <SelectItem key={value} value={value}>
-                          {label}
+                      {selectableCategories.map((category) => (
+                        <SelectItem key={category.id} value={category.id}>
+                          {category.name}
                         </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
                 )}
               />
+              {errors.category_id && (
+                <p className="text-sm text-destructive">{errors.category_id.message}</p>
+              )}
             </div>
 
             <div className="space-y-2">
@@ -158,6 +166,31 @@ export function InventoryFormDialog({
               />
             </div>
           </div>
+
+          {unitType !== "portion" && (
+            <div className="space-y-2">
+              <Label htmlFor="unit_label">Birim etiketi</Label>
+              <Input
+                id="unit_label"
+                placeholder={unitType === "count" ? "adet, koli, paket, litre..." : "teneke, kova, paket... (opsiyonel)"}
+                {...register("unit_label")}
+              />
+            </div>
+          )}
+
+          {unitType === "weight" && unitLabel && (
+            <div className="space-y-2">
+              <Label htmlFor="pack_size">1 {unitLabel} = kaç gram?</Label>
+              <Input
+                id="pack_size"
+                type="number"
+                step="0.001"
+                min="0"
+                placeholder="Boş bırakırsanız gram/kg olarak sayılır"
+                {...register("pack_size")}
+              />
+            </div>
+          )}
 
           {unitType === "portion" && (
             <div className="space-y-2">

@@ -20,14 +20,11 @@ import {
   type DepotStockEntryFormInput,
   type DepotStockEntryInput,
 } from "@/lib/validations/depot";
-import { baseUnitLabel, supportsKgToggle, toBaseUnit } from "@/lib/units";
-import { INVENTORY_CATEGORY_LABELS } from "@/lib/validations/inventory";
+import { defaultUnitChoice, toBaseUnit, unitOptions } from "@/lib/units";
+import { categoryName, startsNewCategory, type ItemWithCategory } from "@/lib/inventory";
 import { addDepotStock } from "./actions";
-import type { Database } from "@/types/database";
 
-type InventoryItem = Database["public"]["Tables"]["inventory_items"]["Row"];
-
-export function WarehouseStockForm({ items }: { items: InventoryItem[] }) {
+export function WarehouseStockForm({ items }: { items: ItemWithCategory[] }) {
   const router = useRouter();
 
   const {
@@ -42,7 +39,7 @@ export function WarehouseStockForm({ items }: { items: InventoryItem[] }) {
       lines: items.map((item) => ({
         inventory_item_id: item.id,
         quantity: undefined,
-        unit_choice: "base",
+        unit_choice: defaultUnitChoice(item),
       })),
       description: "",
     },
@@ -55,12 +52,7 @@ export function WarehouseStockForm({ items }: { items: InventoryItem[] }) {
         const item = items.find((i) => i.id === line.inventory_item_id)!;
         return {
           inventory_item_id: line.inventory_item_id,
-          quantity_base: toBaseUnit(
-            line.quantity!,
-            item.unit_type,
-            line.unit_choice,
-            item.portion_kg_factor,
-          ),
+          quantity_base: toBaseUnit(line.quantity!, item, line.unit_choice),
         };
       });
 
@@ -72,7 +64,7 @@ export function WarehouseStockForm({ items }: { items: InventoryItem[] }) {
         lines: items.map((item) => ({
           inventory_item_id: item.id,
           quantity: undefined,
-          unit_choice: "base",
+          unit_choice: defaultUnitChoice(item),
         })),
         description: "",
       });
@@ -86,12 +78,13 @@ export function WarehouseStockForm({ items }: { items: InventoryItem[] }) {
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
       <div className="space-y-3">
         {items.map((item, index) => {
-          const showCategoryHeader = index === 0 || items[index - 1].category !== item.category;
+          const showCategoryHeader = startsNewCategory(items, index);
+          const options = unitOptions(item);
           return (
             <div key={item.id}>
               {showCategoryHeader && (
                 <p className="mb-2 mt-4 text-xs font-medium uppercase tracking-wide text-muted-foreground first:mt-0">
-                  {INVENTORY_CATEGORY_LABELS[item.category]}
+                  {categoryName(item)}
                 </p>
               )}
               <div className="flex items-center gap-3 rounded-md border p-3">
@@ -103,7 +96,7 @@ export function WarehouseStockForm({ items }: { items: InventoryItem[] }) {
                   className="w-28"
                   {...register(`lines.${index}.quantity`)}
                 />
-                {supportsKgToggle(item.unit_type) ? (
+                {options.length > 1 ? (
                   <Controller
                     control={control}
                     name={`lines.${index}.unit_choice`}
@@ -113,15 +106,18 @@ export function WarehouseStockForm({ items }: { items: InventoryItem[] }) {
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="base">{baseUnitLabel(item.unit_type)}</SelectItem>
-                          <SelectItem value="kg">kg</SelectItem>
+                          {options.map((option) => (
+                            <SelectItem key={option.value} value={option.value}>
+                              {option.label}
+                            </SelectItem>
+                          ))}
                         </SelectContent>
                       </Select>
                     )}
                   />
                 ) : (
                   <span className="w-28 text-sm text-muted-foreground">
-                    {baseUnitLabel(item.unit_type)}
+                    {options[0].label}
                   </span>
                 )}
               </div>

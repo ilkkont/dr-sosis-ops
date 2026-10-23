@@ -25,7 +25,7 @@ export const movementFormSchema = z
     kind: movementKindSchema,
     inventory_item_id: z.string().min(1, { message: "Malzeme seçin." }),
     quantity: z.coerce.number().positive({ message: "Miktar 0'dan büyük olmalı." }),
-    unit_choice: z.enum(["base", "kg"]),
+    unit_choice: z.enum(["base", "kg", "pack"]),
     reason: z.string().max(300).optional().or(z.literal("")),
     target_event_id: z.string().optional().or(z.literal("")),
   })

@@ -7,6 +7,7 @@ import { createClient } from "@/lib/supabase/server";
 import { Button } from "@/components/ui/button";
 import { MovementForm } from "./movement-form";
 import { MovementsLog } from "./movements-log";
+import { ITEM_WITH_CATEGORY_SELECT, sortItemsByCategory, type ItemWithCategory } from "@/lib/inventory";
 
 export const metadata: Metadata = {
   title: "Stok Hareketleri | Dr.Sosis Operasyon Paneli",
@@ -32,12 +33,7 @@ export default async function MovementsPage({
   }
 
   const [{ data: items }, { data: otherEvents }, { data: recentMovements }] = await Promise.all([
-    supabase
-      .from("inventory_items")
-      .select("*")
-      .eq("is_active", true)
-      .order("category")
-      .order("name"),
+    supabase.from("inventory_items").select(ITEM_WITH_CATEGORY_SELECT).eq("is_active", true),
     supabase
       .from("events")
       .select("id, name, event_date, caravan_id, caravans(name)")
@@ -77,7 +73,7 @@ export default async function MovementsPage({
         </p>
       </div>
 
-      <MovementForm eventId={id} items={items ?? []} eventOptions={eventOptions} />
+      <MovementForm eventId={id} items={sortItemsByCategory((items ?? []) as ItemWithCategory[])} eventOptions={eventOptions} />
 
       <MovementsLog movements={recentMovements ?? []} />
     </div>

@@ -6,6 +6,7 @@ import { requireAdmin } from "@/lib/dal";
 import { createClient } from "@/lib/supabase/server";
 import { Button } from "@/components/ui/button";
 import { StockCountForm } from "./stock-count-form";
+import { sortItemsByCategory } from "@/lib/inventory";
 
 export const metadata: Metadata = {
   title: "Gün Sonu Sayımı | Dr.Sosis Operasyon Paneli",
@@ -33,10 +34,8 @@ export default async function StockCountPage({
   const [{ data: items }, { data: balances }, { data: existingCount }] = await Promise.all([
     supabase
       .from("inventory_items")
-      .select("id, name, category, unit_type")
-      .eq("is_active", true)
-      .order("category")
-      .order("name"),
+      .select("id, name, unit_type, inventory_categories(name, sort_order)")
+      .eq("is_active", true),
     supabase
       .from("v_stock_balances")
       .select("inventory_item_id, balance")
@@ -69,7 +68,7 @@ export default async function StockCountPage({
 
       <StockCountForm
         eventId={id}
-        items={items ?? []}
+        items={sortItemsByCategory(items ?? [])}
         theoreticalByItem={Object.fromEntries(theoreticalByItem)}
         existingCount={existingCount ?? null}
       />

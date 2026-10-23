@@ -15,9 +15,11 @@ export type ActionResult = { success: true } | { success: false; error: string }
 function toRow(input: InventoryItemInput) {
   return {
     name: input.name,
-    category: input.category,
+    category_id: input.category_id,
     unit_type: input.unit_type,
     display_input_unit: defaultDisplayUnit(input.unit_type),
+    unit_label: input.unit_type === "portion" ? null : input.unit_label || null,
+    pack_size: input.unit_type === "weight" && input.unit_label ? (input.pack_size ?? null) : null,
     portion_kg_factor: input.unit_type === "portion" ? input.portion_kg_factor : null,
     critical_level: input.critical_level,
     is_active: input.is_active,

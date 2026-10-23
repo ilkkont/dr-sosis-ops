@@ -34,6 +34,21 @@ için `.claude/plans/lovely-munching-wombat.md` dosyasına bakılabilir
   kredilendiriyor) üzerinden çalışır. Bir etkinlikteki "gönderilen toplam"ı
   düzenlemek istediğinizde mevcut satırı UPDATE etmeyin — yeni delta'yı bu
   iki fonksiyondan biriyle gönderin (bkz. `stock-load/actions.ts`).
+- **Kategoriler artık veritabanında (`inventory_categories`), enum değil.**
+  Kalemler `category_id` ile bağlanır; listelerde kategori adı/sırası için
+  `ITEM_WITH_CATEGORY_SELECT` + `sortItemsByCategory` (`src/lib/inventory.ts`)
+  kullanılır. Eski `inventory_items.category` enum kolonu geçiş için duruyor
+  (nullable, artık okunmuyor) — sonraki temizlikte düşürülebilir.
+- **Birimler**: stok her zaman ana birimde (gram/porsiyon/adet) saklanır;
+  `unit_label` (koli, teneke, litre...) yalnızca görünümdür, `pack_size`
+  ağırlıklı kalemlerde "1 etiket = kaç gram" dönüşümüdür (boşsa gram/kg).
+  Dönüşümler yalnızca `src/lib/units.ts` (`toBaseUnit`/`fromBaseUnit`/
+  `unitOptions`/`formatQuantity`) üzerinden yapılır; birim dönüşümü için
+  kalem bilgisi istemciden değil veritabanından okunur.
+- **Karavan stokları** (`caravan_stock_movements` / `v_caravan_stock_balances`):
+  etkinlikten bağımsız, manuel yönetilen kalıcı stok; aynı immutable-ledger
+  deseni. Düzenleme `fn_set_caravan_stock` ile "şu toplama eşitle" şeklinde
+  yapılır, delta sunucuda hesaplanır.
 - **Her Server Action ve her korumalı sayfa `requireAdmin()` ile başlar**
   (`src/lib/dal.ts`) — `src/proxy.ts` yalnızca "optimistic" bir ön kontroldür,
   tek başına yeterli güvenlik katmanı değildir (Next.js'in kendi güvenlik

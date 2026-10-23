@@ -1,4 +1,7 @@
 import type { Metadata } from "next";
+import Link from "next/link";
+import { Boxes } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { requireAdmin } from "@/lib/dal";
 import { createClient } from "@/lib/supabase/server";
 import { ReportFilters } from "./report-filters";
@@ -122,6 +125,11 @@ export default async function ReportsPage({
           raporları.
         </p>
       </div>
+
+      <Button variant="outline" className="w-fit" render={<Link href="/reports/stock-levels" />}>
+        <Boxes className="size-4" />
+        Stok Durumu Raporu (Ana Depo + Karavanlar)
+      </Button>
 
       <ReportFilters caravans={caravans ?? []} from={from} to={to} caravanId={caravanId} />
 

@@ -118,3 +118,42 @@ export function caravanComparison(
     }))
     .sort((a, b) => b.sold - a.sold);
 }
+
+export type StockLevelRow = {
+  itemId: string;
+  depot: number;
+  /** karavan id → bakiye */
+  caravans: Record<string, number>;
+  total: number;
+};
+
+/**
+ * Ana depo ve karavan bakiyelerini kalem bazında tek satırda birleştirir.
+ * Kalem sırası `itemIds` ile verilir (kategori sırası çağıran tarafta
+ * belirlenir). `hideZero` ise depo ve tüm karavanlarda sıfır olan satırları eler.
+ */
+export function stockLevelsMatrix(
+  itemIds: string[],
+  depotBalances: { inventory_item_id: string; balance: number }[],
+  caravanBalances: { caravan_id: string; inventory_item_id: string; balance: number }[],
+  hideZero: boolean,
+): StockLevelRow[] {
+  const depotByItem = new Map(depotBalances.map((b) => [b.inventory_item_id, b.balance]));
+  const caravansByItem = new Map<string, Record<string, number>>();
+  for (const row of caravanBalances) {
+    const entry = caravansByItem.get(row.inventory_item_id) ?? {};
+    entry[row.caravan_id] = (entry[row.caravan_id] ?? 0) + row.balance;
+    caravansByItem.set(row.inventory_item_id, entry);
+  }
+
+  const rows = itemIds.map((itemId) => {
+    const depot = depotByItem.get(itemId) ?? 0;
+    const caravans = caravansByItem.get(itemId) ?? {};
+    const total = depot + Object.values(caravans).reduce((sum, value) => sum + value, 0);
+    return { itemId, depot, caravans, total };
+  });
+
+  return hideZero
+    ? rows.filter((row) => row.depot !== 0 || Object.values(row.caravans).some((v) => v !== 0))
+    : rows;
+}

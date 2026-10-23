@@ -19,17 +19,14 @@ import {
   type StockLoadInput,
 } from "@/lib/validations/stock-load";
 import {
-  baseUnitLabel,
+  defaultUnitChoice,
   formatQuantity,
   fromBaseUnit,
-  supportsKgToggle,
   toBaseUnit,
+  unitOptions,
 } from "@/lib/units";
-import { INVENTORY_CATEGORY_LABELS } from "@/lib/validations/inventory";
+import { categoryName, startsNewCategory, type ItemWithCategory } from "@/lib/inventory";
 import { updateEventStockFromDepot } from "./actions";
-import type { Database } from "@/types/database";
-
-type InventoryItem = Database["public"]["Tables"]["inventory_items"]["Row"];
 
 export function StockLoadForm({
   eventId,
@@ -38,7 +35,7 @@ export function StockLoadForm({
   sentByItem,
 }: {
   eventId: string;
-  items: InventoryItem[];
+  items: ItemWithCategory[];
   depotBalanceByItem: Record<string, number>;
   sentByItem: Record<string, number>;
 }) {
@@ -53,15 +50,10 @@ export function StockLoadForm({
     resolver: zodResolver(stockLoadFormSchema),
     defaultValues: {
       lines: items.map((item) => {
-        const defaultChoice = supportsKgToggle(item.unit_type) ? "kg" : "base";
+        const defaultChoice = defaultUnitChoice(item);
         return {
           inventory_item_id: item.id,
-          quantity: fromBaseUnit(
-            sentByItem[item.id] ?? 0,
-            item.unit_type,
-            defaultChoice,
-            item.portion_kg_factor,
-          ),
+          quantity: fromBaseUnit(sentByItem[item.id] ?? 0, item, defaultChoice),
           unit_choice: defaultChoice,
         };
       }),
@@ -73,12 +65,7 @@ export function StockLoadForm({
       const item = items.find((i) => i.id === line.inventory_item_id)!;
       return {
         inventory_item_id: line.inventory_item_id,
-        new_total_base: toBaseUnit(
-          line.quantity ?? 0,
-          item.unit_type,
-          line.unit_choice,
-          item.portion_kg_factor,
-        ),
+        new_total_base: toBaseUnit(line.quantity ?? 0, item, line.unit_choice),
         current_total_base: sentByItem[line.inventory_item_id] ?? 0,
       };
     });
@@ -95,7 +82,7 @@ export function StockLoadForm({
       const names = result.insufficientItems
         .map((entry) => {
           const item = items.find((i) => i.id === entry.inventory_item_id);
-          return item ? `${item.name} (depoda ${formatQuantity(item.unit_type, entry.depot_balance, item.portion_kg_factor)} var)` : entry.inventory_item_id;
+          return item ? `${item.name} (depoda ${formatQuantity(item, entry.depot_balance)} var)` : entry.inventory_item_id;
         })
         .join(", ");
       toast.error(`Depoda yeterli stok yok: ${names}`);
@@ -109,20 +96,21 @@ export function StockLoadForm({
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
       <div className="space-y-3">
         {items.map((item, index) => {
-          const showCategoryHeader = index === 0 || items[index - 1].category !== item.category;
+          const showCategoryHeader = startsNewCategory(items, index);
+          const options = unitOptions(item);
           const depotBalance = depotBalanceByItem[item.id] ?? 0;
           return (
             <div key={item.id}>
               {showCategoryHeader && (
                 <p className="mb-2 mt-4 text-xs font-medium uppercase tracking-wide text-muted-foreground first:mt-0">
-                  {INVENTORY_CATEGORY_LABELS[item.category]}
+                  {categoryName(item)}
                 </p>
               )}
               <div className="flex flex-wrap items-center gap-3 rounded-md border p-3">
                 <div className="flex-1">
                   <p className="text-sm font-medium">{item.name}</p>
                   <p className="text-xs text-muted-foreground">
-                    Depo bakiyesi: {formatQuantity(item.unit_type, depotBalance, item.portion_kg_factor)}
+                    Depo bakiyesi: {formatQuantity(item, depotBalance)}
                   </p>
                 </div>
                 <Input
@@ -132,7 +120,7 @@ export function StockLoadForm({
                   className="w-28"
                   {...register(`lines.${index}.quantity`)}
                 />
-                {supportsKgToggle(item.unit_type) ? (
+                {options.length > 1 ? (
                   <Controller
                     control={control}
                     name={`lines.${index}.unit_choice`}
@@ -142,15 +130,18 @@ export function StockLoadForm({
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="base">{baseUnitLabel(item.unit_type)}</SelectItem>
-                          <SelectItem value="kg">kg</SelectItem>
+                          {options.map((option) => (
+                            <SelectItem key={option.value} value={option.value}>
+                              {option.label}
+                            </SelectItem>
+                          ))}
                         </SelectContent>
                       </Select>
                     )}
                   />
                 ) : (
                   <span className="w-28 text-sm text-muted-foreground">
-                    {baseUnitLabel(item.unit_type)}
+                    {options[0].label}
                   </span>
                 )}
               </div>

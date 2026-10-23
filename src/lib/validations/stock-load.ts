@@ -3,7 +3,7 @@ import { z } from "zod";
 export const stockLoadLineSchema = z.object({
   inventory_item_id: z.string(),
   quantity: z.coerce.number().min(0).optional(),
-  unit_choice: z.enum(["base", "kg"]),
+  unit_choice: z.enum(["base", "kg", "pack"]),
 });
 
 export const stockLoadFormSchema = z.object({

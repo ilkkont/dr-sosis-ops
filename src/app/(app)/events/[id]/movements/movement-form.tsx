@@ -21,11 +21,9 @@ import {
   type MovementFormInput,
   type MovementInput,
 } from "@/lib/validations/movement";
-import { baseUnitLabel, supportsKgToggle } from "@/lib/units";
+import { defaultUnitChoice, unitOptions } from "@/lib/units";
+import { categoryName, type ItemWithCategory } from "@/lib/inventory";
 import { recordMovement } from "./actions";
-import type { Database } from "@/types/database";
-
-type InventoryItem = Database["public"]["Tables"]["inventory_items"]["Row"];
 
 export function MovementForm({
   eventId,
@@ -33,7 +31,7 @@ export function MovementForm({
   eventOptions,
 }: {
   eventId: string;
-  items: InventoryItem[];
+  items: ItemWithCategory[];
   eventOptions: { id: string; label: string }[];
 }) {
   const {
@@ -41,6 +39,7 @@ export function MovementForm({
     handleSubmit,
     control,
     reset,
+    setValue,
     formState: { errors, isSubmitting },
   } = useForm<MovementFormInput, unknown, MovementInput>({
     resolver: zodResolver(movementFormSchema),
@@ -65,10 +64,7 @@ export function MovementForm({
       return;
     }
 
-    const result = await recordMovement(eventId, values, {
-      unit_type: item.unit_type,
-      portion_kg_factor: item.portion_kg_factor,
-    });
+    const result = await recordMovement(eventId, values);
 
     if (result.success) {
       toast.success("Hareket kaydedildi.");
@@ -120,14 +116,21 @@ export function MovementForm({
               control={control}
               name="inventory_item_id"
               render={({ field }) => (
-                <Select value={field.value} onValueChange={field.onChange}>
+                <Select
+                  value={field.value}
+                  onValueChange={(value) => {
+                    field.onChange(value);
+                    const picked = items.find((i) => i.id === value);
+                    if (picked) setValue("unit_choice", defaultUnitChoice(picked));
+                  }}
+                >
                   <SelectTrigger id="inventory_item_id" className="w-full">
                     <SelectValue placeholder="Malzeme seçin" />
                   </SelectTrigger>
                   <SelectContent>
                     {items.map((item) => (
                       <SelectItem key={item.id} value={item.id}>
-                        {item.name}
+                        {item.name} ({categoryName(item)})
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -159,7 +162,7 @@ export function MovementForm({
             </div>
             <div className="space-y-2">
               <Label htmlFor="unit_choice">Birim</Label>
-              {selectedItem && supportsKgToggle(selectedItem.unit_type) ? (
+              {selectedItem && unitOptions(selectedItem).length > 1 ? (
                 <Controller
                   control={control}
                   name="unit_choice"
@@ -169,15 +172,18 @@ export function MovementForm({
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="base">{baseUnitLabel(selectedItem.unit_type)}</SelectItem>
-                        <SelectItem value="kg">kg</SelectItem>
+                        {unitOptions(selectedItem).map((option) => (
+                          <SelectItem key={option.value} value={option.value}>
+                            {option.label}
+                          </SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
                   )}
                 />
               ) : (
                 <div className="flex h-9 items-center text-sm text-muted-foreground">
-                  {selectedItem ? baseUnitLabel(selectedItem.unit_type) : "—"}
+                  {selectedItem ? unitOptions(selectedItem)[0].label : "—"}
                 </div>
               )}
             </div>

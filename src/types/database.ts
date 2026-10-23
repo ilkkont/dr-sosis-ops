@@ -69,9 +69,12 @@ export type Database = {
         Row: {
           id: string;
           name: string;
-          category: Database["public"]["Enums"]["inventory_category"];
+          category: Database["public"]["Enums"]["inventory_category"] | null;
+          category_id: string | null;
           unit_type: Database["public"]["Enums"]["unit_type"];
           display_input_unit: Database["public"]["Enums"]["display_input_unit"];
+          unit_label: string | null;
+          pack_size: number | null;
           portion_kg_factor: number | null;
           critical_level: number;
           is_active: boolean;
@@ -81,9 +84,12 @@ export type Database = {
         Insert: {
           id?: string;
           name: string;
-          category: Database["public"]["Enums"]["inventory_category"];
+          category?: Database["public"]["Enums"]["inventory_category"] | null;
+          category_id?: string | null;
           unit_type: Database["public"]["Enums"]["unit_type"];
           display_input_unit: Database["public"]["Enums"]["display_input_unit"];
+          unit_label?: string | null;
+          pack_size?: number | null;
           portion_kg_factor?: number | null;
           critical_level?: number;
           is_active?: boolean;
@@ -91,7 +97,70 @@ export type Database = {
           updated_at?: string;
         };
         Update: Partial<Database["public"]["Tables"]["inventory_items"]["Insert"]>;
+        Relationships: [
+          {
+            foreignKeyName: "inventory_items_category_id_fkey";
+            columns: ["category_id"];
+            isOneToOne: false;
+            referencedRelation: "inventory_categories";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      inventory_categories: {
+        Row: {
+          id: string;
+          name: string;
+          sort_order: number;
+          is_active: boolean;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          name: string;
+          sort_order?: number;
+          is_active?: boolean;
+          created_at?: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["inventory_categories"]["Insert"]>;
         Relationships: [];
+      };
+      caravan_stock_movements: {
+        Row: {
+          id: string;
+          caravan_id: string;
+          inventory_item_id: string;
+          quantity_base: number;
+          description: string | null;
+          created_by: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          caravan_id: string;
+          inventory_item_id: string;
+          quantity_base: number;
+          description?: string | null;
+          created_by?: string | null;
+          created_at?: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["caravan_stock_movements"]["Insert"]>;
+        Relationships: [
+          {
+            foreignKeyName: "caravan_stock_movements_caravan_id_fkey";
+            columns: ["caravan_id"];
+            isOneToOne: false;
+            referencedRelation: "caravans";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "caravan_stock_movements_inventory_item_id_fkey";
+            columns: ["inventory_item_id"];
+            isOneToOne: false;
+            referencedRelation: "inventory_items";
+            referencedColumns: ["id"];
+          },
+        ];
       };
       menu_products: {
         Row: {
@@ -684,6 +753,29 @@ export type Database = {
           },
         ];
       };
+      v_caravan_stock_balances: {
+        Row: {
+          caravan_id: string;
+          inventory_item_id: string;
+          balance: number;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "caravan_stock_movements_caravan_id_fkey";
+            columns: ["caravan_id"];
+            isOneToOne: false;
+            referencedRelation: "caravans";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "caravan_stock_movements_inventory_item_id_fkey";
+            columns: ["inventory_item_id"];
+            isOneToOne: false;
+            referencedRelation: "inventory_items";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       v_depot_balances: {
         Row: {
           inventory_item_id: string;
@@ -777,6 +869,10 @@ export type Database = {
       };
       fn_delete_event_permanently: {
         Args: { p_event_id: string };
+        Returns: Json;
+      };
+      fn_set_caravan_stock: {
+        Args: { p_caravan_id: string; p_lines: Json; p_description?: string | null };
         Returns: Json;
       };
       fn_depot_stock_entry: {

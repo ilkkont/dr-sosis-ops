@@ -8,11 +8,11 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { formatDateTimeTR } from "@/lib/datetime";
-import { formatQuantity } from "@/lib/units";
+import { formatQuantity, type UnitItem } from "@/lib/units";
 import type { Database } from "@/types/database";
 
 type DepotMovement = Database["public"]["Tables"]["depot_movements"]["Row"] & {
-  inventory_items: { name: string; unit_type: Database["public"]["Enums"]["unit_type"]; portion_kg_factor: number | null } | null;
+  inventory_items: (UnitItem & { name: string }) | null;
 };
 
 const DEPOT_MOVEMENT_TYPE_LABELS: Record<DepotMovement["movement_type"], string> = {
@@ -60,11 +60,7 @@ export function DepotMovementsLog({ movements }: { movements: DepotMovement[] })
                 >
                   {movement.quantity_base > 0 ? "+" : "-"}
                   {movement.inventory_items
-                    ? formatQuantity(
-                        movement.inventory_items.unit_type,
-                        Math.abs(movement.quantity_base),
-                        movement.inventory_items.portion_kg_factor,
-                      )
+                    ? formatQuantity(movement.inventory_items, Math.abs(movement.quantity_base))
                     : Math.abs(movement.quantity_base)}
                 </TableCell>
               </TableRow>
